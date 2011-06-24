@@ -1,0 +1,6 @@
+An android example app for using ACRA 4 (http://code.google.com/p/acra/).
+
+Branches:
+
+* google-docs: Example for using ACRA 4 with an GoogleDocs Form
+* master: Example for sending JSON with custom ReportSender

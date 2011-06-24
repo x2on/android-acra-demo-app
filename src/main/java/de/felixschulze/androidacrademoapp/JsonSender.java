@@ -69,15 +69,13 @@ public class JsonSender implements ReportSender {
 
         try {
             URL reportUrl;
-            Map<String, String> finalReport = remap(report);
             reportUrl = new URL(mFormUri.toString());
             Log.d(LOG_TAG, "Connect to " + reportUrl.toString());
 
-            JSONObject reportJson = getJSON(finalReport);
+            JSONObject json = createJSON(report);
 
-            doPost(reportJson.toString(), reportUrl, ACRA.getConfig().formUriBasicAuthLogin(), ACRA.getConfig()
+            doPost(json.toString(), reportUrl, ACRA.getConfig().formUriBasicAuthLogin(), ACRA.getConfig()
                     .formUriBasicAuthPassword());
-
 
         } catch (Exception e) {
             throw new ReportSenderException("Error while sending report to Http Post Form.", e);
@@ -97,39 +95,26 @@ public class JsonSender implements ReportSender {
         return aString == null || aString == ACRA.NULL_VALUE;
     }
 
-    private Map<String, String> remap(Map<ReportField, String> report) {
-        Map<String, String> finalReport = new HashMap<String, String>(report.size());
+    private JSONObject createJSON(Map<ReportField, String> report) {
+        JSONObject json= new JSONObject();
+
         ReportField[] fields = ACRA.getConfig().customReportContent();
         if (fields.length == 0) {
             fields = ACRA.DEFAULT_REPORT_FIELDS;
         }
         for (ReportField field : fields) {
-            if (mMapping == null || mMapping.get(field) == null) {
-                finalReport.put(field.toString(), report.get(field));
-            } else {
-                finalReport.put(mMapping.get(field), report.get(field));
-            }
-        }
-        return finalReport;
-    }
-
-    public static JSONObject getJSON(Map<String, String> map) {
-        JSONObject holder = new JSONObject();
-
-        for (Object key : map.keySet()) {
-
-            Object value = map.get(key);
-            if (value == null) {
-                value = "";
-            }
-
             try {
-                holder.put(key.toString(), value.toString());
+                if (mMapping == null || mMapping.get(field) == null) {
+                    json.put(field.toString(), report.get(field));
+                }
+                else {
+                    json.put(mMapping.get(field), report.get(field));
+                }
             } catch (JSONException e) {
                 Log.e("JSONException", "There was an error creating JSON", e);
             }
         }
-        return holder;
 
+        return json;
     }
 }
