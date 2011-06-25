@@ -18,8 +18,10 @@ package de.felixschulze.androidacrademoapp;
 import static org.acra.ACRA.LOG_TAG;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.acra.ACRA;
@@ -31,14 +33,22 @@ import org.acra.util.HttpRequest;
 
 import android.net.Uri;
 import android.util.Log;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.protocol.HTTP;
+import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
 import org.json.JSONException;
 
 /**
  * An JSON ReportSender for ACRA 4 (http://code.google.com/p/acra/)
- * @author Felix Schulze
  *
+ * @author Felix Schulze
  */
 public class JsonSender implements ReportSender {
     private Uri mFormUri = null;
@@ -74,8 +84,7 @@ public class JsonSender implements ReportSender {
 
             JSONObject json = createJSON(report);
 
-            doPost(json.toString(), reportUrl, ACRA.getConfig().formUriBasicAuthLogin(), ACRA.getConfig()
-                    .formUriBasicAuthPassword());
+            sendHttpPost(json.toString(), reportUrl, ACRA.getConfig().formUriBasicAuthLogin(), ACRA.getConfig().formUriBasicAuthPassword());
 
         } catch (Exception e) {
             throw new ReportSenderException("Error while sending report to Http Post Form.", e);
@@ -83,20 +92,12 @@ public class JsonSender implements ReportSender {
 
     }
 
-    public static void doPost(String data, URL url, String login,
-                              String password) throws ClientProtocolException, IOException {
-
-        HttpRequest req = new HttpRequest(isNull(login) ? null : login,
-                isNull(password) ? null : password);
-        req.sendPost(url.toString(), data, CONTENT_TYPE);
-    }
-
     private static boolean isNull(String aString) {
         return aString == null || aString == ACRA.NULL_VALUE;
     }
 
     private JSONObject createJSON(Map<ReportField, String> report) {
-        JSONObject json= new JSONObject();
+        JSONObject json = new JSONObject();
 
         ReportField[] fields = ACRA.getConfig().customReportContent();
         if (fields.length == 0) {
@@ -106,8 +107,7 @@ public class JsonSender implements ReportSender {
             try {
                 if (mMapping == null || mMapping.get(field) == null) {
                     json.put(field.toString(), report.get(field));
-                }
-                else {
+                } else {
                     json.put(mMapping.get(field), report.get(field));
                 }
             } catch (JSONException e) {
@@ -116,5 +116,35 @@ public class JsonSender implements ReportSender {
         }
 
         return json;
+    }
+
+    //TODO: login + password
+    //(isNull(login) ? null : login, isNull(password) ? null : password);
+    private void sendHttpPost(String data, URL url, String login, String password) {
+        DefaultHttpClient httpClient = new DefaultHttpClient();
+        try {
+            HttpPost httPost = new HttpPost(url.toString());
+
+            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
+
+            nameValuePairs.add(new BasicNameValuePair("json", data));
+
+            httPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
+
+            HttpResponse httpResponse = httpClient.execute(httPost);
+
+            Log.d(LOG_TAG, "Server Status: " + httpResponse.getStatusLine());
+            Log.d(LOG_TAG, "Server Response: " + EntityUtils.toString(httpResponse.getEntity()));
+
+
+        } catch (ClientProtocolException e) {
+            e.printStackTrace();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            httpClient.getConnectionManager().shutdown();
+        }
     }
 }
